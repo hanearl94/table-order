@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <h2>Table {{ table_number }} — Orders</h2>
+    <div id="last-refresh" class="muted"></div>
+  </div>
+
+  <div id="empty" class="muted" style="margin-top:8px;">No orders yet for this table.</div>
+
+  <div class="table-wrapper">
+    <table id="torders" class="orders-table hidden">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Time</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <p class="muted" style="margin-top:8px;">(Auto-refreshes every 5s)</p>
+</section>
+
+<script>
+function money(n){ return `$${Number(n).toFixed(2)}`; }
+function when(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
+
+async function loadTableOrders() {
+  const res = await fetch(`/table/{{ table_number }}.json`, { cache: 'no-store' });
+  const data = await res.json();
+  const orders = data.orders || [];
+
+  const empty = document.getElementById('empty');
+  const table = document.getElementById('torders');
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  if (orders.length === 0) {
+    empty.classList.remove('hidden');
+    table.classList.add('hidden');
+  } else {
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
+
+    for (const o of orders) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>#${o.id}</td>
+        <td>${when(o.created_at)}</td>
+        <td>${o.items}</td>
+        <td>${money(o.total)}</td>
+        <td><span class="badge badge--${o.status}">${o.status}</span></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  document.getElementById('last-refresh').textContent =
+    'Last refresh: ' + new Date().toLocaleTimeString();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadTableOrders();
+  setInterval(loadTableOrders, 5000);
+});
+</script>
+{% endblock %}

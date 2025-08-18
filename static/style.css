@@ -65,3 +65,24 @@ button:hover { opacity: 0.95; }
   margin-top: 16px; padding: 12px; border: 1px dashed var(--accent); border-radius: 12px; background: #f0f9ff;
 }
 .hidden { display: none; }
+
+.hidden { display: none; }
+.muted { color: var(--muted); }
+.table-wrapper { overflow-x: auto; }
+.orders-table { width: 100%; border-collapse: collapse; }
+.orders-table th, .orders-table td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  vertical-align: top;
+}
+.orders-table th { background: #f9fafb; text-align: left; }
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  text-transform: capitalize;
+}
+.badge--new { background: #eef2ff; }
+.badge--prepping { background: #fff7e6; }
+.badge--done { background: #eaffea; }

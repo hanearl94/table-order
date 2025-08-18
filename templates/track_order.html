@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Order Tracking</h2>
+  <div id="order-box" class="muted">Loading order…</div>
+</section>
+
+<script>
+function money(n){ return `$${Number(n).toFixed(2)}`; }
+function when(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
+
+async function loadOrder() {
+  const res = await fetch(`/order/{{ order_id }}.json`, { cache: 'no-store' });
+  const data = await res.json().catch(()=>({ok:false}));
+  const box = document.getElementById('order-box');
+
+  if (!data.ok) {
+    box.textContent = 'Order not found.';
+    return;
+  }
+
+  const o = data.order;
+  box.classList.remove('muted');
+  box.innerHTML = `
+    <p><strong>Order #${o.id}</strong> — Table ${o.table_number}</p>
+    <p><em>Placed:</em> ${when(o.created_at)}</p>
+    <p><em>Items:</em> ${o.items}</p>
+    <p><em>Total:</em> ${money(o.total)}</p>
+    <p><em>Status:</em> <span class="badge badge--${o.status}">${o.status}</span></p>
+    <p class="muted" style="margin-top:8px;">This page auto-refreshes every 5s.</p>
+  `;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadOrder();
+  setInterval(loadOrder, 5000);
+});
+</script>
+{% endblock %}

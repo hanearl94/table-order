@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 import sqlite3
 
 app = Flask(__name__)
 
-# In-memory menu (DB for menu can come later)
+# In-memory menu
 MENU = [
     {"id": 1, "name": "Cheeseburger", "price": 8.99},
     {"id": 2, "name": "Margherita Pizza", "price": 12.50},
@@ -26,27 +26,62 @@ def init_db():
             table_number TEXT NOT NULL,
             items TEXT NOT NULL,
             total REAL NOT NULL,
+            status TEXT NOT NULL DEFAULT 'new',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )"""
     )
-    # --- Migration: add status column if missing ---
+
+    # Migrations
     c.execute("PRAGMA table_info(orders)")
-    cols = [row[1] for row in c.fetchall()]  # row[1] is column name
+    cols = [row[1] for row in c.fetchall()]
+
     if "status" not in cols:
         c.execute("ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'new'")
+
+    if "created_at" not in cols:
+        # Can't add with a non-constant default in older sqlite
+        c.execute("ALTER TABLE orders ADD COLUMN created_at TIMESTAMP")
+        # Backfill the value
+        c.execute("UPDATE orders SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+
     conn.commit()
     conn.close()
 
-def query_all_orders():
+def db():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("""SELECT id, table_number, items, total, created_at, status
-                   FROM orders
-                   ORDER BY id DESC""")
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return rows
+    return conn
+
+def query_all_orders():
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT id, table_number, items, total, created_at, status
+                       FROM orders
+                       ORDER BY id DESC""")
+        return [dict(r) for r in cur.fetchall()]
+
+def get_order(order_id: int):
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT id, table_number, items, total, created_at, status
+                       FROM orders WHERE id = ?""", (order_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+def get_orders_for_table(table_number: str, include_done: bool = True):
+    with db() as conn:
+        cur = conn.cursor()
+        if include_done:
+            cur.execute("""SELECT id, table_number, items, total, created_at, status
+                           FROM orders
+                           WHERE table_number = ?
+                           ORDER BY id DESC""", (table_number,))
+        else:
+            cur.execute("""SELECT id, table_number, items, total, created_at, status
+                           FROM orders
+                           WHERE table_number = ? AND status != 'done'
+                           ORDER BY id DESC""", (table_number,))
+        return [dict(r) for r in cur.fetchall()]
 
 @app.route("/")
 def index():
@@ -72,47 +107,67 @@ def order():
 
     items_str = ", ".join(items)
 
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO orders (table_number, items, total, status) VALUES (?, ?, ?, ?)",
-        (table_number, items_str, total, "new"),
-    )
-    conn.commit()
-    conn.close()
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO orders (table_number, items, total, status) VALUES (?, ?, ?, ?)",
+            (table_number, items_str, total, "new"),
+        )
+        order_id = cur.lastrowid
 
-    return f"✅ Saved: Table {table_number} — {items_str} (Total: ${total:.2f})"
+    # 👉 Redirect the guest to their tracking page
+    return redirect(url_for("track_order_page", order_id=order_id))
 
-# Dashboard (HTML)
+# --- Staff dashboard (existing) ---
 @app.route("/orders")
 def orders_page():
     return render_template("orders.html")
 
-# Data endpoint for dashboard
 @app.route("/orders.json")
 def orders_json():
     return jsonify({"orders": query_all_orders()})
 
-# --- NEW: update status endpoint ---
 @app.route("/orders/<int:order_id>/status", methods=["POST"])
 def update_status(order_id: int):
-    # Accept JSON or form data
     status = (request.json or {}).get("status") if request.is_json else request.form.get("status")
     if not status or status not in VALID_STATUSES:
         return jsonify({"ok": False, "error": "invalid status"}), 400
 
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
-    conn.commit()
-    updated = c.rowcount
-    conn.close()
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
+        updated = cur.rowcount
 
     if updated == 0:
         return jsonify({"ok": False, "error": "order not found"}), 404
-
     return jsonify({"ok": True, "id": order_id, "status": status})
+
+# --- NEW: Single-order tracking page ---
+@app.route("/track/<int:order_id>")
+def track_order_page(order_id: int):
+    return render_template("track_order.html", order_id=order_id)
+
+# JSON for the single-order tracker
+@app.route("/order/<int:order_id>.json")
+def order_json(order_id: int):
+    o = get_order(order_id)
+    if not o:
+        return jsonify({"ok": False, "error": "not found"}), 404
+    return jsonify({"ok": True, "order": o})
+
+# --- NEW: Table tracking page (all orders for a table) ---
+@app.route("/table/<table_number>")
+def table_orders_page(table_number: str):
+    # show active orders first; you can toggle include_done via query param later if needed
+    return render_template("table_orders.html", table_number=table_number)
+
+# JSON for the table tracker
+@app.route("/table/<table_number>.json")
+def table_orders_json(table_number: str):
+    include_done = request.args.get("all", "0") == "1"
+    data = get_orders_for_table(table_number, include_done=include_done)
+    return jsonify({"ok": True, "orders": data})
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(debug=True, port=8080)

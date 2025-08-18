@@ -30,5 +30,29 @@
     </form>
   </section>
 
+  </section>
+
+  <section class="card">
+    <h2>Track Your Order</h2>
+    <form onsubmit="track(event)">
+      <div class="table-row">
+        <label for="track-table">Table #</label>
+        <input id="track-table" type="number" min="1" placeholder="e.g. 5" required>
+      </div>
+      <div class="actions">
+        <button type="submit">Find Orders</button>
+      </div>
+    </form>
+  </section>
+
   <script src="/static/script.js"></script>
+  <script>
+  function track(event) {
+    event.preventDefault();
+    const tableNum = document.getElementById('track-table').value;
+    if (tableNum) {
+      window.location.href = `/table/${tableNum}`;
+    }
+  }
+  </script>
 {% endblock %}
