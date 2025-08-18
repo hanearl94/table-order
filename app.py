@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, jsonify
 import sqlite3
 
 app = Flask(__name__)
 
-# Temporary in-memory menu
+# In-memory menu (DB for menu can come later)
 MENU = [
     {"id": 1, "name": "Cheeseburger", "price": 8.99},
     {"id": 2, "name": "Margherita Pizza", "price": 12.50},
@@ -14,10 +14,12 @@ MENU = [
 ]
 
 DB_FILE = "database.db"
+VALID_STATUSES = {"new", "prepping", "done"}
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # Base table
     c.execute(
         """CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,6 +29,11 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )"""
     )
+    # --- Migration: add status column if missing ---
+    c.execute("PRAGMA table_info(orders)")
+    cols = [row[1] for row in c.fetchall()]  # row[1] is column name
+    if "status" not in cols:
+        c.execute("ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'new'")
     conn.commit()
     conn.close()
 
@@ -34,7 +41,9 @@ def query_all_orders():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("SELECT id, table_number, items, total, created_at FROM orders ORDER BY id DESC")
+    cur.execute("""SELECT id, table_number, items, total, created_at, status
+                   FROM orders
+                   ORDER BY id DESC""")
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -66,23 +75,43 @@ def order():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute(
-        "INSERT INTO orders (table_number, items, total) VALUES (?, ?, ?)",
-        (table_number, items_str, total),
+        "INSERT INTO orders (table_number, items, total, status) VALUES (?, ?, ?, ?)",
+        (table_number, items_str, total, "new"),
     )
     conn.commit()
     conn.close()
 
     return f"✅ Saved: Table {table_number} — {items_str} (Total: ${total:.2f})"
 
-# --- NEW: Dashboard page (HTML)
+# Dashboard (HTML)
 @app.route("/orders")
 def orders_page():
     return render_template("orders.html")
 
-# --- NEW: Data endpoint (JSON) for live refresh
+# Data endpoint for dashboard
 @app.route("/orders.json")
 def orders_json():
     return jsonify({"orders": query_all_orders()})
+
+# --- NEW: update status endpoint ---
+@app.route("/orders/<int:order_id>/status", methods=["POST"])
+def update_status(order_id: int):
+    # Accept JSON or form data
+    status = (request.json or {}).get("status") if request.is_json else request.form.get("status")
+    if not status or status not in VALID_STATUSES:
+        return jsonify({"ok": False, "error": "invalid status"}), 400
+
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
+    conn.commit()
+    updated = c.rowcount
+    conn.close()
+
+    if updated == 0:
+        return jsonify({"ok": False, "error": "order not found"}), 404
+
+    return jsonify({"ok": True, "id": order_id, "status": status})
 
 if __name__ == "__main__":
     init_db()

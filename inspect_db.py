@@ -48,11 +48,24 @@ def inspect_database():
         print("ORDER DETAILS:")
         print("-" * 40)
         for order in orders:
-            order_id, table_number, items, total = order
+            # Handle both old and new schema
+            if len(order) == 4:
+                order_id, table_number, items, total = order
+                status = "N/A"
+                created_at = "N/A"
+            elif len(order) == 5:
+                order_id, table_number, items, total, status = order
+                created_at = "N/A"
+            else:
+                order_id, table_number, items, total, created_at, status = order
+            
             print(f"Order ID: {order_id}")
             print(f"Table: {table_number if table_number else 'Not specified'}")
             print(f"Items: {items}")
             print(f"Total: ${total:.2f}")
+            print(f"Status: {status}")
+            if created_at != "N/A":
+                print(f"Created: {created_at}")
             print("-" * 40)
     else:
         print("No orders found in database.")
