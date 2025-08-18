@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="card">
-    <form id="order-form">
+    <form id="order-form" action="/order" method="POST">
       <div class="table-row">
         <label for="table">Table #</label>
         <input id="table" name="table" type="number" min="1" placeholder="e.g. 5" value="{{ table_no }}">
@@ -23,7 +23,7 @@
 
       <div class="actions">
         <!-- Next step we’ll make this submit to the server -->
-        <button type="button" id="review">Review Order</button>
+        <button type="submit">Place Order</button>
       </div>
 
       <div id="summary" class="summary hidden"></div>
