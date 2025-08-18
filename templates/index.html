@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <form id="order-form">
+      <div class="table-row">
+        <label for="table">Table #</label>
+        <input id="table" name="table" type="number" min="1" placeholder="e.g. 5" value="{{ table_no }}">
+      </div>
+
+      <h2>Menu</h2>
+      <div class="menu-grid">
+        {% for item in menu %}
+          <div class="menu-item" data-item-id="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ item.price }}">
+            <div class="menu-name">{{ item.name }}</div>
+            <div class="menu-price">${{ "%.2f"|format(item.price) }}</div>
+            <div class="qty-row">
+              <label>Qty</label>
+              <input type="number" name="qty_{{ item.id }}" min="0" value="0">
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions">
+        <!-- Next step we’ll make this submit to the server -->
+        <button type="button" id="review">Review Order</button>
+      </div>
+
+      <div id="summary" class="summary hidden"></div>
+    </form>
+  </section>
+
+  <script src="/static/script.js"></script>
+{% endblock %}
