@@ -1,14 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;">
-  <h2>Order Management</h2>
-  <div class="btn-row" id="filter-btns">
-    <button class="btn" data-filter="all">All</button>
-    <button class="btn" data-filter="active">Active Only</button>
-    <button class="btn active" data-filter="sections">Sections</button>
+<!-- View Type Detection -->
+<script>
+  window.VIEW_TYPE = '{{ view_type or "all" }}';
+</script>
+
+<!-- Hybrid Navigation -->
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px;">
+  <div style="display:flex;align-items:center;gap:15px;">
+    <h2 style="margin:0;">{% if view_type == 'dine-in' %}🍽️ Dine-In Orders{% elif view_type == 'takeout' %}🥡 Takeout Orders{% else %}📋 Order Management{% endif %}</h2>
+    
+    <!-- View Type Selector -->
+    <div class="btn-row" id="view-type-btns" style="font-size:12px;">
+      <a href="/orders" class="btn {% if not view_type or view_type == 'all' %}active{% endif %}" style="text-decoration:none;padding:4px 8px;">🔄 All Orders</a>
+      <a href="/orders/dine-in" class="btn {% if view_type == 'dine-in' %}active{% endif %}" style="text-decoration:none;padding:4px 8px;">🍽️ Dine-In</a>
+      <a href="/orders/takeout" class="btn {% if view_type == 'takeout' %}active{% endif %}" style="text-decoration:none;padding:4px 8px;">🥡 Takeout</a>
+    </div>
   </div>
-  <div id="last-refresh" class="muted"></div>
+  
+  <div style="display:flex;align-items:center;gap:12px;">
+    <!-- Status Filter Buttons (only for unified view) -->
+    {% if not view_type or view_type == 'all' %}
+    <div class="btn-row" id="filter-btns">
+      <button class="btn" data-filter="all">All</button>
+      <button class="btn" data-filter="active">Active Only</button>
+      <button class="btn active" data-filter="sections">Sections</button>
+    </div>
+    {% endif %}
+    
+    <div id="last-refresh" class="muted" style="font-size:12px;"></div>
+  </div>
 </div>
+
+<!-- View Type Guide -->
+{% if view_type == 'dine-in' %}
+<div style="background:#e8f4fd;border-left:4px solid #0066cc;padding:8px;margin-bottom:15px;border-radius:4px;">
+  <small style="color:#004080;"><strong>🍽️ Dine-In Focus:</strong> This view shows only table orders for dining room staff. Kitchen and managers may prefer the unified "All Orders" view.</small>
+</div>
+{% elif view_type == 'takeout' %}
+<div style="background:#fff3e0;border-left:4px solid #ff9800;padding:8px;margin-bottom:15px;border-radius:4px;">
+  <small style="color:#e65100;"><strong>🥡 Takeout Focus:</strong> This view shows only pickup orders for counter staff. Kitchen and managers may prefer the unified "All Orders" view.</small>
+</div>
+{% endif %}
 
 <div id="orders-empty" class="muted" style="margin:8px 0;">No orders yet.</div>
 
@@ -85,31 +118,80 @@
     </div>
   </section>
 
-  <!-- Ready Orders Section -->
-  <section class="card" style="margin-bottom:20px;background:#fff3cd;border-left:4px solid #ffc107;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-      <h3 style="margin:0;color:#856404;">🎉 Ready for Pickup/Delivery</h3>
-      <span id="ready-count" class="badge badge--ready">0</span>
+  <!-- Ready Orders Section - Adaptive Layout -->
+  <section class="card" style="margin-bottom:15px;background:#fff3cd;border-left:4px solid #ffc107;padding:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <h3 style="margin:0;color:#856404;font-size:16px;">🎉 Ready{% if view_type == 'dine-in' %} to Serve{% elif view_type == 'takeout' %} for Pickup{% endif %}</h3>
+      <div style="display:flex;gap:6px;">
+        {% if not view_type or view_type == 'all' %}
+        <span id="ready-dinein-count" class="badge badge--ready" style="font-size:10px;padding:1px 4px;">0 Dine</span>
+        <span id="ready-takeout-count" class="badge badge--ready" style="font-size:10px;padding:1px 4px;">0 Take</span>
+        {% elif view_type == 'dine-in' %}
+        <span id="ready-dinein-count" class="badge badge--ready" style="font-size:10px;padding:1px 4px;">0 Ready</span>
+        {% elif view_type == 'takeout' %}
+        <span id="ready-takeout-count" class="badge badge--ready" style="font-size:10px;padding:1px 4px;">0 Ready</span>
+        {% endif %}
+      </div>
     </div>
-    <div style="background:#fff3cd;padding:10px;border-radius:4px;margin-bottom:15px;">
-      <small style="color:#856404;"><strong>Customer Info:</strong> These orders are ready! Customers can see this status when tracking their orders.</small>
+    
+    {% if not view_type or view_type == 'all' %}
+    <!-- Split Layout for Unified View -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:250px;">
+    {% else %}
+    <!-- Single Layout for Specialized Views -->
+    <div style="max-height:250px;">
+    {% endif %}
+      <!-- Dine-in Ready Orders -->
+      {% if not view_type or view_type == 'all' or view_type == 'dine-in' %}
+      <div style="min-height:0;border:1px solid #e6d3a3;border-radius:4px;padding:4px;background:#fffdf7;{% if view_type == 'dine-in' %}width:100%;{% endif %}">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+          <h4 style="margin:0;color:#856404;font-size:12px;font-weight:600;">🍽️ {% if view_type == 'dine-in' %}Ready to Serve{% else %}Serve{% endif %}</h4>
+        </div>
+        <div id="ready-dinein-empty" class="muted" style="margin:2px 0;font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}12px{% else %}10px{% endif %};">None ready</div>
+        <div class="table-wrapper" style="max-height:{% if view_type == 'dine-in' %}300px{% else %}180px{% endif %};overflow-y:auto;">
+          <table id="ready-dinein-table" class="orders-table hidden" style="font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}12px{% else %}10px{% endif %};width:100%;">
+            <thead>
+              <tr style="background:#f5f5f5;">
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}35px{% else %}25px{% endif %};">#</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}50px{% else %}35px{% endif %};">Time</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}35px{% else %}25px{% endif %};">Tbl</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};">Items</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}45px{% else %}35px{% endif %};">$</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Takeout Ready Orders -->
+      {% if not view_type or view_type == 'all' or view_type == 'takeout' %}
+      <div style="min-height:0;border:1px solid #e6d3a3;border-radius:4px;padding:4px;background:#fffdf7;{% if view_type == 'takeout' %}width:100%;{% endif %}">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+          <h4 style="margin:0;color:#856404;font-size:12px;font-weight:600;">🥡 {% if view_type == 'takeout' %}Ready for Pickup{% else %}Pickup{% endif %}</h4>
+        </div>
+        <div id="ready-takeout-empty" class="muted" style="margin:2px 0;font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}12px{% else %}10px{% endif %};">None ready</div>
+        <div class="table-wrapper" style="max-height:{% if view_type == 'takeout' %}300px{% else %}180px{% endif %};overflow-y:auto;">
+          <table id="ready-takeout-table" class="orders-table hidden" style="font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}12px{% else %}10px{% endif %};width:100%;">
+            <thead>
+              <tr style="background:#f5f5f5;">
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}35px{% else %}25px{% endif %};">#</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}50px{% else %}35px{% endif %};">Time</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};">Name</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};">Items</th>
+                <th style="padding:{% if view_type == 'dine-in' or view_type == 'takeout' %}4px 6px{% else %}2px 3px{% endif %};font-size:{% if view_type == 'dine-in' or view_type == 'takeout' %}11px{% else %}9px{% endif %};width:{% if view_type == 'dine-in' or view_type == 'takeout' %}45px{% else %}35px{% endif %};">$</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
     </div>
-    <div id="ready-orders-empty" class="muted" style="margin:8px 0;">No orders ready for pickup.</div>
-    <div class="table-wrapper">
-      <table id="ready-orders-table" class="orders-table hidden">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Time</th>
-            <th>Type</th>
-            <th>Customer/Table</th>
-            <th>Items</th>
-            <th>Total</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    
+    <div style="background:#fff3cd;padding:3px;border-radius:3px;margin-top:6px;">
+      <small style="color:#856404;font-size:9px;"><strong>Guide:</strong> Left=serve to table, Right=customer pickup</small>
     </div>
   </section>
 
@@ -149,7 +231,13 @@ function fmt(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
 let currentFilter = 'sections';
 
 async function loadOrders() {
-  if (currentFilter === 'sections') {
+  // Determine view type and filter
+  const viewType = window.VIEW_TYPE || 'all';
+  
+  if (viewType === 'dine-in' || viewType === 'takeout') {
+    // Specialized views always use sections layout
+    await loadSectionedOrders();
+  } else if (currentFilter === 'sections') {
     await loadSectionedOrders();
   } else {
     await loadSingleTableOrders();
@@ -160,7 +248,17 @@ async function loadOrders() {
 }
 
 async function loadSingleTableOrders() {
-  const res = await fetch(`/orders.json?filter=${currentFilter}`, { cache: 'no-store' });
+  const viewType = window.VIEW_TYPE || 'all';
+  let url = `/orders.json?filter=${currentFilter}`;
+  
+  // Add order type filter for specialized views
+  if (viewType === 'dine-in') {
+    url += '&order_type=dine-in';
+  } else if (viewType === 'takeout') {
+    url += '&order_type=takeout';
+  }
+  
+  const res = await fetch(url, { cache: 'no-store' });
   const data = await res.json();
   const orders = data.orders || [];
 
@@ -184,6 +282,7 @@ async function loadSingleTableOrders() {
       const tr = document.createElement('tr');
       const orderTypeDisplay = o.order_type === 'takeout' ? '🥡 Takeout' : '🍽️ Dine-in';
       const customerTableDisplay = o.order_type === 'takeout' ? o.table_number : `Table ${o.table_number}`;
+      const doneButtonText = o.order_type === 'takeout' ? 'Delivered/Picked Up' : 'Served';
       
       tr.innerHTML = `
         <td>${o.id}</td>
@@ -200,7 +299,7 @@ async function loadSingleTableOrders() {
             <button class="btn ghost" data-action="set" data-id="${o.id}" data-status="new">New</button>
             <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Prepping</button>
             <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Ready</button>
-            <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Done</button>
+            <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">${doneButtonText}</button>
           </div>
         </td>
       `;
@@ -210,8 +309,19 @@ async function loadSingleTableOrders() {
 }
 
 async function loadSectionedOrders() {
-  // Fetch all orders
-  const res = await fetch('/orders.json?filter=all', { cache: 'no-store' });
+  // Determine view type and build URL
+  const currentViewType = window.VIEW_TYPE || 'all';
+  let url = '/orders.json?filter=all';
+  
+  // Add order type filter for specialized views
+  if (currentViewType === 'dine-in') {
+    url += '&order_type=dine-in';
+  } else if (currentViewType === 'takeout') {
+    url += '&order_type=takeout';
+  }
+  
+  // Fetch orders
+  const res = await fetch(url, { cache: 'no-store' });
   const data = await res.json();
   const orders = data.orders || [];
 
@@ -226,20 +336,42 @@ async function loadSectionedOrders() {
   const readyOrders = orders.filter(o => o.status === 'ready');
   const doneOrders = orders.filter(o => o.status === 'done');
 
-  // Update counts
+  // Split ready orders by type
+  const readyDineinOrders = readyOrders.filter(o => o.order_type === 'table');
+  const readyTakeoutOrders = readyOrders.filter(o => o.order_type === 'takeout');
+
+  // Update counts based on view type
+  const activeViewType = window.VIEW_TYPE || 'all';
+  
   document.getElementById('new-count').textContent = newOrders.length;
   document.getElementById('prepping-count').textContent = preppingOrders.length;
-  document.getElementById('ready-count').textContent = readyOrders.length;
+  
+  // Update ready counts based on view type
+  if (activeViewType === 'dine-in') {
+    const dineinCountEl = document.getElementById('ready-dinein-count');
+    if (dineinCountEl) dineinCountEl.textContent = `${readyDineinOrders.length} Ready`;
+  } else if (activeViewType === 'takeout') {
+    const takeoutCountEl = document.getElementById('ready-takeout-count');
+    if (takeoutCountEl) takeoutCountEl.textContent = `${readyTakeoutOrders.length} Ready`;
+  } else {
+    // Unified view - show both counts
+    const dineinCountEl = document.getElementById('ready-dinein-count');
+    const takeoutCountEl = document.getElementById('ready-takeout-count');
+    if (dineinCountEl) dineinCountEl.textContent = `${readyDineinOrders.length} Dine`;
+    if (takeoutCountEl) takeoutCountEl.textContent = `${readyTakeoutOrders.length} Take`;
+  }
+  
   document.getElementById('done-count').textContent = doneOrders.length;
 
   // Populate each section
   populateSection('new', newOrders);
   populateSection('prepping', preppingOrders);
-  populateSection('ready', readyOrders);
+  populateReadySplit(readyDineinOrders, readyTakeoutOrders);
   populateSection('done', doneOrders);
 }
 
 function populateSection(status, orders) {
+  console.log(`Populating ${status} section with ${orders.length} orders`);
   const empty = document.getElementById(`${status}-orders-empty`);
   const table = document.getElementById(`${status}-orders-table`);
   const tbody = table.querySelector('tbody');
@@ -268,9 +400,11 @@ function populateSection(status, orders) {
           <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Mark Ready</button>
         `;
       } else if (status === 'ready') {
+        // Different button text based on order type
+        const doneButtonText = o.order_type === 'takeout' ? 'Delivered/Picked Up' : 'Served';
         actionButtons = `
           <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Back to Prepping</button>
-          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Delivered/Picked Up</button>
+          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">${doneButtonText}</button>
         `;
       } else { // done
         actionButtons = `
@@ -278,6 +412,8 @@ function populateSection(status, orders) {
           <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Back to Ready</button>
         `;
       }
+      
+      console.log(`Created ${status} section buttons for order ${o.id}:`, actionButtons);
       
       const orderTypeDisplay = o.order_type === 'takeout' ? '🥡 Takeout' : '🍽️ Dine-in';
       const customerTableDisplay = o.order_type === 'takeout' ? o.table_number : `Table ${o.table_number}`;
@@ -300,6 +436,133 @@ function populateSection(status, orders) {
   }
 }
 
+function populateReadySplit(dineinOrders, takeoutOrders) {
+  // Get elements for both sections
+  const dineinEmpty = document.getElementById('ready-dinein-empty');
+  const dineinTable = document.getElementById('ready-dinein-table');
+  const takeoutEmpty = document.getElementById('ready-takeout-empty');
+  const takeoutTable = document.getElementById('ready-takeout-table');
+  
+  // Check if at least one section exists
+  if ((!dineinEmpty || !dineinTable) && (!takeoutEmpty || !takeoutTable)) {
+    console.log('No Ready Orders sections found - skipping populateReadySplit');
+    return;
+  }
+  
+  // Populate dine-in ready orders (if elements exist)
+  if (dineinEmpty && dineinTable) {
+  
+  const dineinTbody = dineinTable.querySelector('tbody');
+  dineinTbody.innerHTML = '';
+
+  if (dineinOrders.length === 0) {
+    dineinEmpty.classList.remove('hidden');
+    dineinTable.classList.add('hidden');
+  } else {
+    dineinEmpty.classList.add('hidden');
+    dineinTable.classList.remove('hidden');
+
+    for (const o of dineinOrders) {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.style.position = 'relative';
+      const activeViewType = window.VIEW_TYPE || 'all';
+      const isSpecializedView = activeViewType === 'dine-in' || activeViewType === 'takeout';
+      const fontSize = isSpecializedView ? '11px' : '9px';
+      const cellPadding = isSpecializedView ? '3px 6px' : '1px 3px';
+      
+      tr.innerHTML = `
+        <td style="padding:${cellPadding};"><a href="/track/${o.id}" style="text-decoration:none;font-size:${fontSize};color:#0066cc;">${o.id}</a></td>
+        <td style="padding:${cellPadding};font-size:${fontSize};">${fmt(o.created_at).split(' ')[1]}</td>
+        <td style="padding:${cellPadding};font-size:${fontSize};">T${o.table_number}</td>
+        <td style="padding:${cellPadding};font-size:${fontSize};max-width:${isSpecializedView ? '120px' : '80px'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.items}">${o.items}</td>
+        <td style="padding:${cellPadding};font-size:${fontSize};">$${o.total}</td>
+      `;
+      
+      // Add floating action buttons on hover
+      tr.addEventListener('mouseenter', () => {
+        if (!tr.querySelector('.floating-actions')) {
+          const actions = document.createElement('div');
+          actions.className = 'floating-actions';
+          actions.style.cssText = 'position:absolute;right:2px;top:50%;transform:translateY(-50%);display:flex;gap:2px;background:rgba(255,255,255,0.95);padding:2px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.2);z-index:10;';
+          actions.innerHTML = `
+            <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping" style="font-size:8px;padding:1px 3px;min-width:auto;">Back</button>
+            <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done" style="font-size:8px;padding:1px 3px;min-width:auto;">Serve</button>
+          `;
+          tr.appendChild(actions);
+          console.log('Created dine-in buttons for order:', o.id, actions.innerHTML);
+        }
+      });
+      
+      tr.addEventListener('mouseleave', () => {
+        const actions = tr.querySelector('.floating-actions');
+        if (actions) actions.remove();
+      });
+      
+      dineinTbody.appendChild(tr);
+    }
+  }
+  } // Close the dine-in if block
+
+  // Populate takeout ready orders (if elements exist)
+  if (takeoutEmpty && takeoutTable) {
+  const takeoutTbody = takeoutTable.querySelector('tbody');
+  takeoutTbody.innerHTML = '';
+
+  if (takeoutOrders.length === 0) {
+    takeoutEmpty.classList.remove('hidden');
+    takeoutTable.classList.add('hidden');
+  } else {
+    takeoutEmpty.classList.add('hidden');
+    takeoutTable.classList.remove('hidden');
+
+    for (const o of takeoutOrders) {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.style.position = 'relative';
+      
+      // Extract customer name from "Customer Name (phone)" format
+      const customerName = o.table_number.split(' (')[0];
+      
+      const activeViewType = window.VIEW_TYPE || 'all';
+      const isSpecializedView = activeViewType === 'dine-in' || activeViewType === 'takeout';
+      const fontSize = isSpecializedView ? '11px' : '9px';
+      const cellPadding = isSpecializedView ? '3px 6px' : '1px 3px';
+      
+      tr.innerHTML = `
+        <td style="padding:${cellPadding};"><a href="/track/${o.id}" style="text-decoration:none;font-size:${fontSize};color:#0066cc;">${o.id}</a></td>
+        <td style="padding:${cellPadding};font-size:${fontSize};">${fmt(o.created_at).split(' ')[1]}</td>
+        <td style="padding:${cellPadding};font-size:${fontSize};max-width:${isSpecializedView ? '90px' : '60px'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${customerName}">${customerName}</td>
+        <td style="padding:${cellPadding};font-size:${fontSize};max-width:${isSpecializedView ? '120px' : '80px'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.items}">${o.items}</td>
+        <td style="padding:${cellPadding};font-size:${fontSize};">$${o.total}</td>
+      `;
+      
+      // Add floating action buttons on hover
+      tr.addEventListener('mouseenter', () => {
+        if (!tr.querySelector('.floating-actions')) {
+          const actions = document.createElement('div');
+          actions.className = 'floating-actions';
+          actions.style.cssText = 'position:absolute;right:2px;top:50%;transform:translateY(-50%);display:flex;gap:2px;background:rgba(255,255,255,0.95);padding:2px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.2);z-index:10;';
+          actions.innerHTML = `
+            <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping" style="font-size:8px;padding:1px 3px;min-width:auto;">Back</button>
+            <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done" style="font-size:8px;padding:1px 3px;min-width:auto;">Pickup</button>
+          `;
+          tr.appendChild(actions);
+          console.log('Created takeout buttons for order:', o.id, actions.innerHTML);
+        }
+      });
+      
+      tr.addEventListener('mouseleave', () => {
+        const actions = tr.querySelector('.floating-actions');
+        if (actions) actions.remove();
+      });
+      
+      takeoutTbody.appendChild(tr);
+    }
+  }
+  } // Close the takeout if block
+}
+
 async function setStatus(id, status) {
   const res = await fetch(`/orders/${id}/status`, {
     method: 'POST',
@@ -319,23 +582,31 @@ document.addEventListener('DOMContentLoaded', () => {
   loadOrders();
   setInterval(loadOrders, 5000);
 
-  document.getElementById('filter-btns').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-filter]');
-    if (!btn) return;
+  const filterBtns = document.getElementById('filter-btns');
+  if (filterBtns) {
+    filterBtns.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-filter]');
+      if (!btn) return;
 
-    currentFilter = btn.dataset.filter;
-    // Visually update active button
-    for (const b of btn.parentElement.children) {
-      b.classList.toggle('active', b === btn);
-    }
-    loadOrders(); // Reload immediately
-  });
+      currentFilter = btn.dataset.filter;
+      // Visually update active button
+      for (const b of btn.parentElement.children) {
+        b.classList.toggle('active', b === btn);
+      }
+      loadOrders(); // Reload immediately
+    });
+  }
 
   document.body.addEventListener('click', (e) => {
+    console.log('Click detected on:', e.target);
     const btn = e.target.closest('button[data-action="set"]');
+    console.log('Found button:', btn);
     if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
     const id = btn.getAttribute('data-id');
     const status = btn.getAttribute('data-status');
+    console.log('Setting status:', id, status);
     setStatus(id, status);
   });
 });

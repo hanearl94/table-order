@@ -14,7 +14,12 @@
         </div>
         <div class="table-row">
           <label for="phone_number">Phone Number *</label>
-          <input id="phone_number" name="phone_number" type="tel" placeholder="e.g. (555) 123-4567" required>
+          <input id="phone_number" name="phone_number" type="tel" 
+                 placeholder="(555) 123-4567 or +1 555 123 4567" 
+                 pattern="[\+]?[0-9\s\-\(\)\.]{10,15}"
+                 title="Enter a valid phone number (10-11 digits for US, or international with +)"
+                 required>
+          <small style="color:#666;font-size:11px;">📱 Accepts: (555) 123-4567, 555-123-4567, +1 555 123 4567</small>
         </div>
       </div>
 
@@ -95,8 +100,58 @@
     }
   }
 
+  // Phone number formatting and validation
+  function formatPhoneNumber(input) {
+    let value = input.value.replace(/[^\d+]/g, '');
+    
+    // Don't format international numbers (starting with +)
+    if (value.startsWith('+')) {
+      input.value = value;
+      return;
+    }
+    
+    // Format US numbers as user types
+    if (value.length >= 6) {
+      value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+    } else if (value.length >= 3) {
+      value = value.replace(/(\d{3})(\d{3})/, '($1) $2');
+    }
+    
+    input.value = value;
+  }
+  
+  function validatePhoneNumber(phone) {
+    const digitsOnly = phone.replace(/[^\d+]/g, '');
+    
+    if (digitsOnly.startsWith('+')) {
+      // International: +1 to +999 followed by 7-15 digits
+      return digitsOnly.length >= 8 && digitsOnly.length <= 16;
+    } else {
+      // US: 10 or 11 digits
+      return digitsOnly.length === 10 || (digitsOnly.length === 11 && digitsOnly.startsWith('1'));
+    }
+  }
+
   // Reuse the existing menu interaction script
   document.addEventListener('DOMContentLoaded', () => {
+    // Phone number formatting
+    const phoneInput = document.getElementById('phone_number');
+    phoneInput.addEventListener('input', (e) => {
+      formatPhoneNumber(e.target);
+    });
+    
+    // Phone validation on form submit
+    const takeoutForm = document.getElementById('takeout-form');
+    takeoutForm.addEventListener('submit', (e) => {
+      const phone = phoneInput.value.trim();
+      if (!validatePhoneNumber(phone)) {
+        e.preventDefault();
+        alert('Please enter a valid phone number:\n\n• US: (555) 123-4567 or 555-123-4567\n• International: +1 555 123 4567');
+        phoneInput.focus();
+        return false;
+      }
+    });
+    
     // Add event listeners for quantity changes to show live summary
     const form = document.getElementById('takeout-form');
     const summary = document.getElementById('summary');

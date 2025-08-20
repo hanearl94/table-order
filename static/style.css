@@ -87,3 +87,21 @@ button:hover { opacity: 0.95; }
 .badge--prepping { background: #fff7e6; }
 .badge--ready { background: #fff3cd; color: #856404; border-color: #ffc107; }
 .badge--done { background: #eaffea; }
+
+/* Navigation group styling */
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+
+.nav-group a {
+  font-size: 13px;
+  padding: 4px 8px;
+}

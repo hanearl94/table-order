@@ -187,31 +187,54 @@ def takeout_order():
 # --- Staff dashboard (existing) ---
 @app.route("/orders")
 def orders_page():
-    return render_template("orders.html")
+    return render_template("orders.html", view_type="all")
+
+@app.route("/orders/dine-in")
+def orders_dinein_page():
+    return render_template("orders.html", view_type="dine-in")
+
+@app.route("/orders/takeout")
+def orders_takeout_page():
+    return render_template("orders.html", view_type="takeout")
 
 @app.route("/orders.json")
 def orders_json():
     filter_type = request.args.get('filter', 'all')
+    order_type_filter = request.args.get('order_type', 'all')  # New parameter
     
     with db() as conn:
         cur = conn.cursor()
         
-        if filter_type == 'active':
-            # Active means new, prepping, or ready (not done)
-            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
-                           FROM orders 
-                           WHERE status IN ('new', 'prepping', 'ready')
-                           ORDER BY id DESC""")
-        elif filter_type == 'done':
-            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
-                           FROM orders 
-                           WHERE status = 'done'
-                           ORDER BY id DESC""")
-        else:  # 'all' or any other value
-            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
-                           FROM orders
-                           ORDER BY id DESC""")
+        # Build WHERE clause based on filters
+        where_conditions = []
+        params = []
         
+        # Status filter
+        if filter_type == 'active':
+            where_conditions.append("status IN ('new', 'prepping', 'ready')")
+        elif filter_type == 'done':
+            where_conditions.append("status = 'done'")
+        # 'all' means no status filter
+        
+        # Order type filter
+        if order_type_filter == 'dine-in':
+            where_conditions.append("order_type = ?")
+            params.append('table')
+        elif order_type_filter == 'takeout':
+            where_conditions.append("order_type = ?")
+            params.append('takeout')
+        # 'all' means no order type filter
+        
+        # Build final query
+        base_query = """SELECT id, table_number, items, total, created_at, status, order_type
+                        FROM orders"""
+        
+        if where_conditions:
+            query = base_query + " WHERE " + " AND ".join(where_conditions) + " ORDER BY id DESC"
+        else:
+            query = base_query + " ORDER BY id DESC"
+        
+        cur.execute(query, params)
         orders = [dict(r) for r in cur.fetchall()]
     
     return jsonify({"orders": orders})
