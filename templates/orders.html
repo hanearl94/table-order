@@ -1,20 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-    <h2>Incoming Orders</h2>
-    <div class="btn-row" id="filter-btns">
-      <button class="btn active" data-filter="all">All</button>
-      <button class="btn" data-filter="active">Active</button>
-      <button class="btn" data-filter="done">Done</button>
-    </div>
-    <div id="last-refresh" class="muted"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;">
+  <h2>Order Management</h2>
+  <div class="btn-row" id="filter-btns">
+    <button class="btn active" data-filter="all">All</button>
+    <button class="btn" data-filter="active">Active Only</button>
+    <button class="btn" data-filter="sections">Sections</button>
   </div>
+  <div id="last-refresh" class="muted"></div>
+</div>
 
-  <div id="orders-empty" class="muted" style="margin:8px 0;">No orders yet.</div>
+<div id="orders-empty" class="muted" style="margin:8px 0;">No orders yet.</div>
 
+<!-- Single table view (for 'all' and 'active' filters) -->
+<section id="single-view" class="card hidden">
   <div class="table-wrapper">
-    <table id="orders-table" class="orders-table hidden">
+    <table id="orders-table" class="orders-table">
       <thead>
         <tr>
           <th>ID</th>
@@ -31,6 +32,84 @@
   </div>
 </section>
 
+<!-- Sectioned view (for 'sections' filter) -->
+<div id="sectioned-view" class="hidden">
+  <!-- New Orders Section -->
+  <section class="card" style="margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3 style="margin:0;color:#e74c3c;">🔥 New Orders</h3>
+      <span id="new-count" class="badge badge--new">0</span>
+    </div>
+    <div id="new-orders-empty" class="muted" style="margin:8px 0;">No new orders.</div>
+    <div class="table-wrapper">
+      <table id="new-orders-table" class="orders-table hidden">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Time</th>
+            <th>Table</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Prepping Orders Section -->
+  <section class="card" style="margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3 style="margin:0;color:#f39c12;">👨‍🍳 Prepping Orders</h3>
+      <span id="prepping-count" class="badge badge--prepping">0</span>
+    </div>
+    <div id="prepping-orders-empty" class="muted" style="margin:8px 0;">No orders being prepared.</div>
+    <div class="table-wrapper">
+      <table id="prepping-orders-table" class="orders-table hidden">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Time</th>
+            <th>Table</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Done Orders Section (Separated for staff clarity) -->
+  <section class="card" style="background:#f8f9fa;border-left:4px solid #27ae60;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3 style="margin:0;color:#27ae60;">✅ Completed Orders</h3>
+      <span id="done-count" class="badge badge--done">0</span>
+    </div>
+    <div style="background:#e8f5e8;padding:10px;border-radius:4px;margin-bottom:15px;">
+      <small style="color:#27ae60;"><strong>Staff Note:</strong> These orders are completed and ready for delivery/pickup. This section helps avoid confusion with active orders.</small>
+    </div>
+    <div id="done-orders-empty" class="muted" style="margin:8px 0;">No completed orders.</div>
+    <div class="table-wrapper">
+      <table id="done-orders-table" class="orders-table hidden">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Time</th>
+            <th>Table</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
 <script>
 function formatMoney(n){ return `$${Number(n).toFixed(2)}`; }
 function fmt(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
@@ -38,9 +117,24 @@ function fmt(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
 let currentFilter = 'all';
 
 async function loadOrders() {
+  if (currentFilter === 'sections') {
+    await loadSectionedOrders();
+  } else {
+    await loadSingleTableOrders();
+  }
+  
+  document.getElementById('last-refresh').textContent =
+    'Last refresh: ' + new Date().toLocaleTimeString();
+}
+
+async function loadSingleTableOrders() {
   const res = await fetch(`/orders.json?filter=${currentFilter}`, { cache: 'no-store' });
   const data = await res.json();
   const orders = data.orders || [];
+
+  // Show single view, hide sectioned view
+  document.getElementById('single-view').classList.remove('hidden');
+  document.getElementById('sectioned-view').classList.add('hidden');
 
   const empty = document.getElementById('orders-empty');
   const table = document.getElementById('orders-table');
@@ -76,9 +170,85 @@ async function loadOrders() {
       tbody.appendChild(tr);
     }
   }
+}
 
-  document.getElementById('last-refresh').textContent =
-    'Last refresh: ' + new Date().toLocaleTimeString();
+async function loadSectionedOrders() {
+  // Fetch all orders
+  const res = await fetch('/orders.json?filter=all', { cache: 'no-store' });
+  const data = await res.json();
+  const orders = data.orders || [];
+
+  // Show sectioned view, hide single view
+  document.getElementById('single-view').classList.add('hidden');
+  document.getElementById('sectioned-view').classList.remove('hidden');
+  document.getElementById('orders-empty').classList.add('hidden');
+
+  // Separate orders by status
+  const newOrders = orders.filter(o => o.status === 'new');
+  const preppingOrders = orders.filter(o => o.status === 'prepping');
+  const doneOrders = orders.filter(o => o.status === 'done');
+
+  // Update counts
+  document.getElementById('new-count').textContent = newOrders.length;
+  document.getElementById('prepping-count').textContent = preppingOrders.length;
+  document.getElementById('done-count').textContent = doneOrders.length;
+
+  // Populate each section
+  populateSection('new', newOrders);
+  populateSection('prepping', preppingOrders);
+  populateSection('done', doneOrders);
+}
+
+function populateSection(status, orders) {
+  const empty = document.getElementById(`${status}-orders-empty`);
+  const table = document.getElementById(`${status}-orders-table`);
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  if (orders.length === 0) {
+    empty.classList.remove('hidden');
+    table.classList.add('hidden');
+  } else {
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
+
+    for (const o of orders) {
+      const tr = document.createElement('tr');
+      
+      // Different action buttons based on current status
+      let actionButtons = '';
+      if (status === 'new') {
+        actionButtons = `
+          <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Start Prepping</button>
+          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Mark Done</button>
+        `;
+      } else if (status === 'prepping') {
+        actionButtons = `
+          <button class="btn ghost" data-action="set" data-id="${o.id}" data-status="new">Back to New</button>
+          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Mark Done</button>
+        `;
+      } else { // done
+        actionButtons = `
+          <button class="btn ghost" data-action="set" data-id="${o.id}" data-status="new">Reopen</button>
+          <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Back to Prepping</button>
+        `;
+      }
+      
+      tr.innerHTML = `
+        <td>${o.id}</td>
+        <td>${fmt(o.created_at)}</td>
+        <td>Table ${o.table_number}</td>
+        <td>${o.items}</td>
+        <td>${formatMoney(o.total)}</td>
+        <td>
+          <div class="btn-row">
+            ${actionButtons}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
 }
 
 async function setStatus(id, status) {

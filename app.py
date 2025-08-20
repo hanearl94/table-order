@@ -125,7 +125,30 @@ def orders_page():
 
 @app.route("/orders.json")
 def orders_json():
-    return jsonify({"orders": query_all_orders()})
+    filter_type = request.args.get('filter', 'all')
+    
+    with db() as conn:
+        cur = conn.cursor()
+        
+        if filter_type == 'active':
+            # Active means new or prepping (not done)
+            cur.execute("""SELECT id, table_number, items, total, created_at, status
+                           FROM orders 
+                           WHERE status IN ('new', 'prepping')
+                           ORDER BY id DESC""")
+        elif filter_type == 'done':
+            cur.execute("""SELECT id, table_number, items, total, created_at, status
+                           FROM orders 
+                           WHERE status = 'done'
+                           ORDER BY id DESC""")
+        else:  # 'all' or any other value
+            cur.execute("""SELECT id, table_number, items, total, created_at, status
+                           FROM orders
+                           ORDER BY id DESC""")
+        
+        orders = [dict(r) for r in cur.fetchall()]
+    
+    return jsonify({"orders": orders})
 
 @app.route("/orders/<int:order_id>/status", methods=["POST"])
 def update_status(order_id: int):
