@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2>🥡 Takeout Order</h2>
+      <a href="/" class="btn ghost">← Dine In</a>
+    </div>
+    
+    <form id="takeout-form" action="/takeout-order" method="POST">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;">
+        <div class="table-row">
+          <label for="customer_name">Customer Name *</label>
+          <input id="customer_name" name="customer_name" type="text" placeholder="e.g. John Smith" required>
+        </div>
+        <div class="table-row">
+          <label for="phone_number">Phone Number *</label>
+          <input id="phone_number" name="phone_number" type="tel" placeholder="e.g. (555) 123-4567" required>
+        </div>
+      </div>
+
+      <h3>Menu</h3>
+      <div class="menu-grid">
+        {% for item in menu %}
+          <div class="menu-item" data-item-id="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ item.price }}">
+            <div class="menu-name">{{ item.name }}</div>
+            <div class="menu-price">${{ "%.2f"|format(item.price) }}</div>
+            <div class="qty-row">
+              <label>Qty</label>
+              <input type="number" name="qty_{{ item.id }}" min="0" value="0">
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions">
+        <button type="submit">Place Takeout Order</button>
+      </div>
+
+      <div id="summary" class="summary hidden"></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h3>Track Your Takeout Order</h3>
+    <p class="muted">After placing your order, you'll receive an order number to track your order status.</p>
+    <form onsubmit="trackTakeout(event)">
+      <div class="table-row">
+        <label for="track-order-id">Order ID</label>
+        <input id="track-order-id" type="number" min="1" placeholder="e.g. 123" required>
+      </div>
+      <div class="actions">
+        <button type="submit">Track Order</button>
+      </div>
+    </form>
+  </section>
+
+  <script src="/static/script.js"></script>
+  <script>
+  function trackTakeout(event) {
+    event.preventDefault();
+    const orderId = document.getElementById('track-order-id').value;
+    if (orderId) {
+      window.location.href = `/track/${orderId}`;
+    }
+  }
+
+  // Reuse the existing menu interaction script
+  document.addEventListener('DOMContentLoaded', () => {
+    // Add event listeners for quantity changes to show live summary
+    const form = document.getElementById('takeout-form');
+    const summary = document.getElementById('summary');
+    
+    form.addEventListener('input', (e) => {
+      if (e.target.type === 'number' && e.target.name.startsWith('qty_')) {
+        updateSummary();
+      }
+    });
+    
+    function updateSummary() {
+      const items = [];
+      let total = 0;
+      
+      document.querySelectorAll('.menu-item').forEach(item => {
+        const id = item.dataset.itemId;
+        const name = item.dataset.name;
+        const price = parseFloat(item.dataset.price);
+        const qtyInput = item.querySelector(`input[name="qty_${id}"]`);
+        const qty = parseInt(qtyInput.value) || 0;
+        
+        if (qty > 0) {
+          items.push(`${qty}x ${name} ($${(qty * price).toFixed(2)})`);
+          total += qty * price;
+        }
+      });
+      
+      if (items.length > 0) {
+        summary.innerHTML = `
+          <h4>Order Summary</h4>
+          <ul>
+            ${items.map(item => `<li>${item}</li>`).join('')}
+          </ul>
+          <div class="total"><strong>Total: $${total.toFixed(2)}</strong></div>
+        `;
+        summary.classList.remove('hidden');
+      } else {
+        summary.classList.add('hidden');
+      }
+    }
+  });
+  </script>
+{% endblock %}

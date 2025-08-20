@@ -44,6 +44,11 @@ def init_db():
         # Backfill the value
         c.execute("UPDATE orders SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
 
+    if "order_type" not in cols:
+        c.execute("ALTER TABLE orders ADD COLUMN order_type TEXT NOT NULL DEFAULT 'table'")
+        # Backfill existing orders as table orders
+        c.execute("UPDATE orders SET order_type = 'table' WHERE order_type IS NULL")
+
     conn.commit()
     conn.close()
 
@@ -55,7 +60,7 @@ def db():
 def query_all_orders():
     with db() as conn:
         cur = conn.cursor()
-        cur.execute("""SELECT id, table_number, items, total, created_at, status
+        cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                        FROM orders
                        ORDER BY id DESC""")
         return [dict(r) for r in cur.fetchall()]
@@ -63,7 +68,7 @@ def query_all_orders():
 def get_order(order_id: int):
     with db() as conn:
         cur = conn.cursor()
-        cur.execute("""SELECT id, table_number, items, total, created_at, status
+        cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                        FROM orders WHERE id = ?""", (order_id,))
         row = cur.fetchone()
         return dict(row) if row else None
@@ -86,6 +91,10 @@ def get_orders_for_table(table_number: str, include_done: bool = True):
 @app.route("/")
 def index():
     return render_template("index.html", menu=MENU)
+
+@app.route("/takeout")
+def takeout():
+    return render_template("takeout.html", menu=MENU)
 
 @app.route("/order", methods=["POST"])
 def order():
@@ -110,12 +119,49 @@ def order():
     with db() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO orders (table_number, items, total, status) VALUES (?, ?, ?, ?)",
-            (table_number, items_str, total, "new"),
+            "INSERT INTO orders (table_number, items, total, status, order_type) VALUES (?, ?, ?, ?, ?)",
+            (table_number, items_str, total, "new", "table"),
         )
         order_id = cur.lastrowid
 
     # 👉 Redirect the guest to their tracking page
+    return redirect(url_for("track_order_page", order_id=order_id))
+
+@app.route("/takeout-order", methods=["POST"])
+def takeout_order():
+    customer_name = request.form.get("customer_name", "").strip()
+    phone_number = request.form.get("phone_number", "").strip()
+    
+    if not customer_name:
+        return "Please provide a customer name.", 400
+    if not phone_number:
+        return "Please provide a phone number.", 400
+
+    items = []
+    total = 0.0
+    for item in MENU:
+        qty_str = request.form.get(f"qty_{item['id']}", "0").strip()
+        qty = int(qty_str or 0)
+        if qty > 0:
+            items.append(f"{qty}x {item['name']}")
+            total += qty * item["price"]
+
+    if not items:
+        return "No items selected. Please go back and add items.", 400
+
+    items_str = ", ".join(items)
+    # Use customer name and phone as the "table_number" for takeout orders
+    table_identifier = f"{customer_name} ({phone_number})"
+
+    with db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO orders (table_number, items, total, status, order_type) VALUES (?, ?, ?, ?, ?)",
+            (table_identifier, items_str, total, "new", "takeout"),
+        )
+        order_id = cur.lastrowid
+
+    # Redirect to tracking page
     return redirect(url_for("track_order_page", order_id=order_id))
 
 # --- Staff dashboard (existing) ---
@@ -132,17 +178,17 @@ def orders_json():
         
         if filter_type == 'active':
             # Active means new or prepping (not done)
-            cur.execute("""SELECT id, table_number, items, total, created_at, status
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                            FROM orders 
                            WHERE status IN ('new', 'prepping')
                            ORDER BY id DESC""")
         elif filter_type == 'done':
-            cur.execute("""SELECT id, table_number, items, total, created_at, status
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                            FROM orders 
                            WHERE status = 'done'
                            ORDER BY id DESC""")
         else:  # 'all' or any other value
-            cur.execute("""SELECT id, table_number, items, total, created_at, status
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                            FROM orders
                            ORDER BY id DESC""")
         

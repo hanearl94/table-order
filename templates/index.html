@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2>🍽️ Dine In Order</h2>
+      <a href="/takeout" class="btn warn">🥡 Takeout Order</a>
+    </div>
     <form id="order-form" action="/order" method="POST">
       <div class="table-row">
         <label for="table">Table #</label>

@@ -3,9 +3,9 @@
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;">
   <h2>Order Management</h2>
   <div class="btn-row" id="filter-btns">
-    <button class="btn active" data-filter="all">All</button>
+    <button class="btn" data-filter="all">All</button>
     <button class="btn" data-filter="active">Active Only</button>
-    <button class="btn" data-filter="sections">Sections</button>
+    <button class="btn active" data-filter="sections">Sections</button>
   </div>
   <div id="last-refresh" class="muted"></div>
 </div>
@@ -20,7 +20,8 @@
         <tr>
           <th>ID</th>
           <th>Time</th>
-          <th>Table</th>
+          <th>Type</th>
+          <th>Customer/Table</th>
           <th>Items</th>
           <th>Total</th>
           <th>Status</th>
@@ -47,7 +48,8 @@
           <tr>
             <th>ID</th>
             <th>Time</th>
-            <th>Table</th>
+            <th>Type</th>
+            <th>Customer/Table</th>
             <th>Items</th>
             <th>Total</th>
             <th>Actions</th>
@@ -71,7 +73,8 @@
           <tr>
             <th>ID</th>
             <th>Time</th>
-            <th>Table</th>
+            <th>Type</th>
+            <th>Customer/Table</th>
             <th>Items</th>
             <th>Total</th>
             <th>Actions</th>
@@ -98,7 +101,8 @@
           <tr>
             <th>ID</th>
             <th>Time</th>
-            <th>Table</th>
+            <th>Type</th>
+            <th>Customer/Table</th>
             <th>Items</th>
             <th>Total</th>
             <th>Actions</th>
@@ -114,7 +118,7 @@
 function formatMoney(n){ return `$${Number(n).toFixed(2)}`; }
 function fmt(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
 
-let currentFilter = 'all';
+let currentFilter = 'sections';
 
 async function loadOrders() {
   if (currentFilter === 'sections') {
@@ -150,10 +154,14 @@ async function loadSingleTableOrders() {
 
     for (const o of orders) {
       const tr = document.createElement('tr');
+      const orderTypeDisplay = o.order_type === 'takeout' ? '🥡 Takeout' : '🍽️ Dine-in';
+      const customerTableDisplay = o.order_type === 'takeout' ? o.table_number : `Table ${o.table_number}`;
+      
       tr.innerHTML = `
         <td>${o.id}</td>
         <td>${fmt(o.created_at)}</td>
-        <td>Table ${o.table_number}</td>
+        <td>${orderTypeDisplay}</td>
+        <td>${customerTableDisplay}</td>
         <td>${o.items}</td>
         <td>${formatMoney(o.total)}</td>
         <td>
@@ -234,10 +242,14 @@ function populateSection(status, orders) {
         `;
       }
       
+      const orderTypeDisplay = o.order_type === 'takeout' ? '🥡 Takeout' : '🍽️ Dine-in';
+      const customerTableDisplay = o.order_type === 'takeout' ? o.table_number : `Table ${o.table_number}`;
+      
       tr.innerHTML = `
         <td>${o.id}</td>
         <td>${fmt(o.created_at)}</td>
-        <td>Table ${o.table_number}</td>
+        <td>${orderTypeDisplay}</td>
+        <td>${customerTableDisplay}</td>
         <td>${o.items}</td>
         <td>${formatMoney(o.total)}</td>
         <td>
