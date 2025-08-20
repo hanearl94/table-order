@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <h2>🥡 Takeout Orders for {{ phone_number }}</h2>
+    <div id="last-refresh" class="muted"></div>
+  </div>
+
+  <div id="empty" class="muted" style="margin-top:8px;">No takeout orders found for this phone number.</div>
+
+  <div class="table-wrapper">
+    <table id="porders" class="orders-table hidden">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Time</th>
+          <th>Customer</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <p class="muted" style="margin-top:8px;">(Auto-refreshes every 5s)</p>
+  
+  <div style="margin-top:20px;">
+    <a href="/takeout" class="btn">🥡 Place New Takeout Order</a>
+    <a href="/" class="btn ghost">← Back to Home</a>
+  </div>
+</section>
+
+<script>
+function money(n){ return `$${Number(n).toFixed(2)}`; }
+function when(t){ return new Date(t.replace(' ', 'T')).toLocaleString(); }
+
+async function loadPhoneOrders() {
+  const res = await fetch(`/phone/{{ phone_number }}.json`, { cache: 'no-store' });
+  const data = await res.json();
+  const orders = data.orders || [];
+
+  const empty = document.getElementById('empty');
+  const table = document.getElementById('porders');
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  if (orders.length === 0) {
+    empty.classList.remove('hidden');
+    table.classList.add('hidden');
+  } else {
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
+
+    for (const o of orders) {
+      const tr = document.createElement('tr');
+      // Extract customer name from "Customer Name (phone)" format
+      const customerName = o.table_number.split(' (')[0];
+      
+      tr.innerHTML = `
+        <td><a href="/track/${o.id}" style="text-decoration:none;">#${o.id}</a></td>
+        <td>${when(o.created_at)}</td>
+        <td>${customerName}</td>
+        <td>${o.items}</td>
+        <td>${money(o.total)}</td>
+        <td><span class="badge badge--${o.status}">${o.status}</span></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  document.getElementById('last-refresh').textContent =
+    'Last refresh: ' + new Date().toLocaleTimeString();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadPhoneOrders();
+  setInterval(loadPhoneOrders, 5000);
+});
+</script>
+{% endblock %}

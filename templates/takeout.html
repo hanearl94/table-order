@@ -41,26 +41,57 @@
   </section>
 
   <section class="card">
-    <h3>Track Your Takeout Order</h3>
-    <p class="muted">After placing your order, you'll receive an order number to track your order status.</p>
-    <form onsubmit="trackTakeout(event)">
-      <div class="table-row">
-        <label for="track-order-id">Order ID</label>
-        <input id="track-order-id" type="number" min="1" placeholder="e.g. 123" required>
+    <h3>Track Your Takeout Orders</h3>
+    <p class="muted">Track your orders by Order ID or Phone Number</p>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- Track by Order ID -->
+      <div>
+        <h4>Track by Order ID</h4>
+        <form onsubmit="trackByOrderId(event)">
+          <div class="table-row">
+            <label for="track-order-id">Order ID</label>
+            <input id="track-order-id" type="number" min="1" placeholder="e.g. 123" required>
+          </div>
+          <div class="actions">
+            <button type="submit">Track Order</button>
+          </div>
+        </form>
       </div>
-      <div class="actions">
-        <button type="submit">Track Order</button>
+      
+      <!-- Track by Phone Number -->
+      <div>
+        <h4>Track by Phone Number</h4>
+        <form onsubmit="trackByPhone(event)">
+          <div class="table-row">
+            <label for="track-phone">Phone Number</label>
+            <input id="track-phone" type="tel" placeholder="e.g. (555) 123-4567" required>
+          </div>
+          <div class="actions">
+            <button type="submit">View All Orders</button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   </section>
 
   <script src="/static/script.js"></script>
   <script>
-  function trackTakeout(event) {
+  function trackByOrderId(event) {
     event.preventDefault();
     const orderId = document.getElementById('track-order-id').value;
     if (orderId) {
       window.location.href = `/track/${orderId}`;
+    }
+  }
+  
+  function trackByPhone(event) {
+    event.preventDefault();
+    const phone = document.getElementById('track-phone').value.trim();
+    if (phone) {
+      // Encode the phone number for URL safety
+      const encodedPhone = encodeURIComponent(phone);
+      window.location.href = `/phone/${encodedPhone}`;
     }
   }
 

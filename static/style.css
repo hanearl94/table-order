@@ -85,4 +85,5 @@ button:hover { opacity: 0.95; }
 }
 .badge--new { background: #eef2ff; }
 .badge--prepping { background: #fff7e6; }
+.badge--ready { background: #fff3cd; color: #856404; border-color: #ffc107; }
 .badge--done { background: #eaffea; }

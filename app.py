@@ -14,7 +14,7 @@ MENU = [
 ]
 
 DB_FILE = "database.db"
-VALID_STATUSES = {"new", "prepping", "done"}
+VALID_STATUSES = {"new", "prepping", "ready", "done"}
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -77,15 +77,35 @@ def get_orders_for_table(table_number: str, include_done: bool = True):
     with db() as conn:
         cur = conn.cursor()
         if include_done:
-            cur.execute("""SELECT id, table_number, items, total, created_at, status
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                            FROM orders
                            WHERE table_number = ?
                            ORDER BY id DESC""", (table_number,))
         else:
-            cur.execute("""SELECT id, table_number, items, total, created_at, status
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                            FROM orders
                            WHERE table_number = ? AND status != 'done'
                            ORDER BY id DESC""", (table_number,))
+        return [dict(r) for r in cur.fetchall()]
+
+def get_orders_by_phone(phone_number: str, include_done: bool = True):
+    """Get takeout orders by phone number"""
+    with db() as conn:
+        cur = conn.cursor()
+        # Phone number is stored in table_number field for takeout orders
+        # Format: "Customer Name (phone_number)"
+        phone_pattern = f"%({phone_number})%"
+        
+        if include_done:
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
+                           FROM orders
+                           WHERE order_type = 'takeout' AND table_number LIKE ?
+                           ORDER BY id DESC""", (phone_pattern,))
+        else:
+            cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
+                           FROM orders
+                           WHERE order_type = 'takeout' AND table_number LIKE ? AND status != 'done'
+                           ORDER BY id DESC""", (phone_pattern,))
         return [dict(r) for r in cur.fetchall()]
 
 @app.route("/")
@@ -177,10 +197,10 @@ def orders_json():
         cur = conn.cursor()
         
         if filter_type == 'active':
-            # Active means new or prepping (not done)
+            # Active means new, prepping, or ready (not done)
             cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
                            FROM orders 
-                           WHERE status IN ('new', 'prepping')
+                           WHERE status IN ('new', 'prepping', 'ready')
                            ORDER BY id DESC""")
         elif filter_type == 'done':
             cur.execute("""SELECT id, table_number, items, total, created_at, status, order_type
@@ -235,6 +255,18 @@ def table_orders_page(table_number: str):
 def table_orders_json(table_number: str):
     include_done = request.args.get("all", "0") == "1"
     data = get_orders_for_table(table_number, include_done=include_done)
+    return jsonify({"ok": True, "orders": data})
+
+# --- NEW: Phone number tracking for takeout orders ---
+@app.route("/phone/<phone_number>")
+def phone_orders_page(phone_number: str):
+    return render_template("phone_orders.html", phone_number=phone_number)
+
+# JSON for the phone tracker
+@app.route("/phone/<phone_number>.json")
+def phone_orders_json(phone_number: str):
+    include_done = request.args.get("all", "0") == "1"
+    data = get_orders_by_phone(phone_number, include_done=include_done)
     return jsonify({"ok": True, "orders": data})
 
 if __name__ == "__main__":

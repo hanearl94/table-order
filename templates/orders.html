@@ -85,6 +85,34 @@
     </div>
   </section>
 
+  <!-- Ready Orders Section -->
+  <section class="card" style="margin-bottom:20px;background:#fff3cd;border-left:4px solid #ffc107;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3 style="margin:0;color:#856404;">🎉 Ready for Pickup/Delivery</h3>
+      <span id="ready-count" class="badge badge--ready">0</span>
+    </div>
+    <div style="background:#fff3cd;padding:10px;border-radius:4px;margin-bottom:15px;">
+      <small style="color:#856404;"><strong>Customer Info:</strong> These orders are ready! Customers can see this status when tracking their orders.</small>
+    </div>
+    <div id="ready-orders-empty" class="muted" style="margin:8px 0;">No orders ready for pickup.</div>
+    <div class="table-wrapper">
+      <table id="ready-orders-table" class="orders-table hidden">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Customer/Table</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- Done Orders Section (Separated for staff clarity) -->
   <section class="card" style="background:#f8f9fa;border-left:4px solid #27ae60;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
@@ -171,6 +199,7 @@ async function loadSingleTableOrders() {
           <div class="btn-row">
             <button class="btn ghost" data-action="set" data-id="${o.id}" data-status="new">New</button>
             <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Prepping</button>
+            <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Ready</button>
             <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Done</button>
           </div>
         </td>
@@ -194,16 +223,19 @@ async function loadSectionedOrders() {
   // Separate orders by status
   const newOrders = orders.filter(o => o.status === 'new');
   const preppingOrders = orders.filter(o => o.status === 'prepping');
+  const readyOrders = orders.filter(o => o.status === 'ready');
   const doneOrders = orders.filter(o => o.status === 'done');
 
   // Update counts
   document.getElementById('new-count').textContent = newOrders.length;
   document.getElementById('prepping-count').textContent = preppingOrders.length;
+  document.getElementById('ready-count').textContent = readyOrders.length;
   document.getElementById('done-count').textContent = doneOrders.length;
 
   // Populate each section
   populateSection('new', newOrders);
   populateSection('prepping', preppingOrders);
+  populateSection('ready', readyOrders);
   populateSection('done', doneOrders);
 }
 
@@ -228,17 +260,22 @@ function populateSection(status, orders) {
       if (status === 'new') {
         actionButtons = `
           <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Start Prepping</button>
-          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Mark Done</button>
+          <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Mark Ready</button>
         `;
       } else if (status === 'prepping') {
         actionButtons = `
           <button class="btn ghost" data-action="set" data-id="${o.id}" data-status="new">Back to New</button>
-          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Mark Done</button>
+          <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Mark Ready</button>
+        `;
+      } else if (status === 'ready') {
+        actionButtons = `
+          <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Back to Prepping</button>
+          <button class="btn ok" data-action="set" data-id="${o.id}" data-status="done">Delivered/Picked Up</button>
         `;
       } else { // done
         actionButtons = `
           <button class="btn ghost" data-action="set" data-id="${o.id}" data-status="new">Reopen</button>
-          <button class="btn warn" data-action="set" data-id="${o.id}" data-status="prepping">Back to Prepping</button>
+          <button class="btn" style="background:#ffc107;color:#856404;" data-action="set" data-id="${o.id}" data-status="ready">Back to Ready</button>
         `;
       }
       
